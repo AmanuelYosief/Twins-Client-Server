@@ -46,15 +46,37 @@ public class Server {
     public void session(Socket connection) throws IOException {
         writer = new OutputStreamWriter(connection.getOutputStream());
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            
+        
+        String msg;
+        while ((msg = reader.readLine()) != null) {
+         sendMessage("What is your name?");
+         String name =  reader.readLine();
+         sendMessage("Your Name is: " + name);
+        //  if <name> is already registered:
+        
+        
+        //  else if <name> is not already registered:
+                // Server: When were you born?
+        }
+        
+        
+        
+        
         // TODO: replace this with the actual protocol logic
-        String msg = reader.readLine();
-        sendMessage("Server Under Construction, please try later.");
+        
+        if (msg.equals("hello"))
+        {
+                sendMessage("\n What is your name?");
+        }
+        else {
+             sendMessage("Server Under Construction, please try later. \n What is your name?");
+        }
+
+
         // we got a client message, but we didn't look at it,
-        // then we sent a completely invalid response!
-            
-        System.out.println("Closing connection");
-        connection.close();
+        // then we sent a completely invalid response!  
+        //System.out.println("Closing connection");
+        //connection.close();
     }
 
     /**
@@ -64,7 +86,7 @@ public class Server {
      */
     private void sendMessage(String msg) throws IOException {
         writer.write(msg);
-        writer.write("\n");
+        writer.write("\r\n"); // Windows! Differ to Linux's \n
         // this flush() is necessary, otherwise ouput is buffered locally and
         // won't be sent to the client until it is too late 
         writer.flush();
