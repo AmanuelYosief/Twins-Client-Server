@@ -1,6 +1,9 @@
 package twins;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -47,36 +50,50 @@ public class Server {
         writer = new OutputStreamWriter(connection.getOutputStream());
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
         
-        String msg;
-        while ((msg = reader.readLine()) != null) {
-         sendMessage("What is your name?");
-         String name =  reader.readLine();
-         sendMessage("Your Name is: " + name);
-        //  if <name> is already registered:
+        //  CW specifies a persistent database and that is platform indepedent and created during code
+        File file = new File("write.txt");
+        FileWriter fileWriter = new FileWriter(file);
+        BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+        
+        
+        
+        String initialMessage;
+        while ((initialMessage = reader.readLine()) != null) {
+        if(initialMessage.equals("hello"))
+        {
+        sendMessage("What is your name?");
+        String name =  reader.readLine();
+         //  if <name> is already registered:
+ 
+         try (Writer writer = new BufferedWriter(new FileWriter(file))) {
+            String contents = name;
+            writer.write(contents);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        
+        System.err.println("User's name is " + name);
+        sendMessage("When were you born?");
+        String dateOfBirth = reader.readLine();
+        System.err.println("User's dob is " + dateOfBirth);
+        } else {
+        initialMessage = "";
+        }
+
+       
         
         
         //  else if <name> is not already registered:
                 // Server: When were you born?
-        }
-        
-        
-        
-        
+
+
         // TODO: replace this with the actual protocol logic
         
-        if (msg.equals("hello"))
-        {
-                sendMessage("\n What is your name?");
-        }
-        else {
-             sendMessage("Server Under Construction, please try later. \n What is your name?");
-        }
-
-
         // we got a client message, but we didn't look at it,
         // then we sent a completely invalid response!  
         //System.out.println("Closing connection");
         //connection.close();
+    }
     }
 
     /**
