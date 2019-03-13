@@ -3,6 +3,7 @@ package twins;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -15,9 +16,8 @@ import java.net.Socket;
 public class Server {
 
     private final int port;
-
     private Writer writer;
-
+    private String TCPstate;
     /**
      * Initialise a new Twins server. To start the server, call start().
      * @param port the port number on which the server will listen for connections
@@ -51,33 +51,81 @@ public class Server {
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
         
         //  CW specifies a persistent database and that is platform indepedent and created during code
-        File file = new File("write.txt");
+        File file = new File("TwinsDatabase.txt");
         FileWriter fileWriter = new FileWriter(file);
         BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
         
         
         
         String initialMessage;
+        TCPstate = "NEW";
         while ((initialMessage = reader.readLine()) != null) {
-        if(initialMessage.equals("hello"))
+        if(initialMessage.equals("hello") && TCPstate.equals("NEW"))
         {
+        TCPstate = "RECEIVE_NAME";
         sendMessage("What is your name?");
         String name =  reader.readLine();
-         //  if <name> is already registered:
- 
-         try (Writer writer = new BufferedWriter(new FileWriter(file))) {
-            String contents = name;
-            writer.write(contents);
-        } catch (IOException e) {
+        
+
+
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("TwinsDatabase.txt"));
+            String line = null;
+            
+            while ((line = br.readLine()) != null){
+               if (line.contains(name)){
+                sendMessage("Found you!");
+               }
+       /*         
+            String tmp[] = line.split("\t");
+            name = tmp[0];
+            if (name.equals(tmp[0]))
+            sendMessage(name+ "Worked?");
+            
+        */   
+            
+            }
+        } catch (IOException e){
             e.printStackTrace();
         }
         
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        //  if <name> is already registered:
+         sendMessage("When were you born?");
+        String date = reader.readLine();
+        
+         try (Writer writer = new BufferedWriter(new FileWriter(file, true))) {
+            String contents = name;
+            writer.write(contents + "\t" + date + "\r\n");
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        /*
         System.err.println("User's name is " + name);
-        sendMessage("When were you born?");
-        String dateOfBirth = reader.readLine();
+        
         System.err.println("User's dob is " + dateOfBirth);
+        
+        
+        */
         } else {
-        initialMessage = "";
+        initialMessage = ""; 
+        TCPstate = "NEW";
+        sendMessage("The server is expecting a 'hello'");
+        
         }
 
        
