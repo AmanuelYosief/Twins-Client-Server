@@ -12,15 +12,19 @@ import java.io.Writer;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
 
 public class Server {
 
     private final int port;
     private Writer writer;
     private String TCPstate;
+
     /**
      * Initialise a new Twins server. To start the server, call start().
-     * @param port the port number on which the server will listen for connections
+     *
+     * @param port the port number on which the server will listen for
+     * connections
      */
     public Server(int port) {
         this.port = port;
@@ -28,13 +32,14 @@ public class Server {
 
     /**
      * Start the server.
-     * @throws IOException 
+     *
+     * @throws IOException
      */
     public void start() throws IOException {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (true) {
                 System.out.println("Server listening on port: " + port);
-                Socket conn= serverSocket.accept();
+                Socket conn = serverSocket.accept();
                 System.out.println("Connected to " + conn.getInetAddress() + ":" + conn.getPort());
                 session(conn);
             }
@@ -43,111 +48,109 @@ public class Server {
 
     /**
      * Run a Twins protocol session over an established network connection.
+     *
      * @param connection the network connection
-     * @throws IOException 
+     * @throws IOException
      */
     public void session(Socket connection) throws IOException {
         writer = new OutputStreamWriter(connection.getOutputStream());
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-        
+
         //  CW specifies a persistent database and that is platform indepedent and created during code
         File file = new File("TwinsDatabase.txt");
         FileWriter fileWriter = new FileWriter(file);
         BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-        
-        
-        
+
         String initialMessage;
+        String date;
         TCPstate = "NEW";
         while ((initialMessage = reader.readLine()) != null) {
-        if(initialMessage.equals("hello") && TCPstate.equals("NEW"))
-        {
-        TCPstate = "RECEIVE_NAME";
-        sendMessage("What is your name?");
-        String name =  reader.readLine();
-        
+            if (initialMessage.equals("hello") && TCPstate.equals("NEW")) {
+                TCPstate = "RECEIVE_NAME";
+                sendMessage("What is your name?");
+                String name = reader.readLine();
 
+                try {
+                    BufferedReader br = new BufferedReader(new FileReader("TwinsDatabase.txt"));
+                    String line = null;
 
-        try {
-            BufferedReader br = new BufferedReader(new FileReader("TwinsDatabase.txt"));
-            String line = null;
-            
-            while ((line = br.readLine()) != null){
-               if (line.contains(name)){
-                sendMessage("Found you!");
-               }
-       /*         
-            String tmp[] = line.split("\t");
-            name = tmp[0];
-            if (name.equals(tmp[0]))
-            sendMessage(name+ "Worked?");
-            
-        */   
-            
-            }
-        } catch (IOException e){
-            e.printStackTrace();
-        }
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        //  if <name> is already registered:
-         sendMessage("When were you born?");
-        String date = reader.readLine();
-        
-         try (Writer writer = new BufferedWriter(new FileWriter(file, true))) {
-            String contents = name;
-            writer.write(contents + "\t" + date + "\r\n");
-            
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        /*
+// if <name> is already registered, display <Twins list>
+                    while ((line = br.readLine()) != null) {
+                        String tmp[] = line.split("\t");
+                        
+                        if (Arrays.asList(tmp).contains(name)) {
+                            sendMessage("That name is already registered, Printing Twins now");
+                            sendMessage("BEGIN TWINS");
+                            sendMessage(tmp[0]);
+                            sendMessage("END TWINS");
+                        }
+                        
+                        
+
+                    }
+
+                    sendMessage("When were you born?");
+                    date = reader.readLine();
+
+                    try (Writer writer = new BufferedWriter(new FileWriter(file, true))) {
+                        String contents = name;
+                        writer.write(contents + "\t" + date + "\r\n");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+// <editor-fold>
+                //  if <name> is already registered:
+                /*
         System.err.println("User's name is " + name);
         
         System.err.println("User's dob is " + dateOfBirth);
         
         
-        */
-        } else {
-        initialMessage = ""; 
-        TCPstate = "NEW";
-        sendMessage("The server is expecting a 'hello'");
-        
+                 */
+                // </editor-fold>
+            } else {
+                initialMessage = "";
+                TCPstate = "NEW";
+                sendMessage("The server is expecting a 'hello'");
+
+            }
+// <editor-fold>
+            //  else if <name> is not already registered:
+            // Server: When were you born?
+            // TODO: replace this with the actual protocol logic
+            // we got a client message, but we didn't look at it,
+            // then we sent a completely invalid response!  
+            //System.out.println("Closing connection");
+            //connection.close();
+// </editor-fold>
         }
-
-       
-        
-        
-        //  else if <name> is not already registered:
-                // Server: When were you born?
-
-
-        // TODO: replace this with the actual protocol logic
-        
-        // we got a client message, but we didn't look at it,
-        // then we sent a completely invalid response!  
-        //System.out.println("Closing connection");
-        //connection.close();
     }
+
+    private void displayTwins(String[] tmp, String name) throws IOException {
+        // <editor-fold>
+        /*
+        if (Arrays.asList(tmp).contains(name)) {
+                            date = tmp[1];
+                            sendMessage(name + " " + date);
+                        } else {
+                            sendMessage("Can't find user with that name!");
+
+                        }
+         */
+        // </editor-fold>
+        sendMessage("BEGIN TWINS");
+        sendMessage(Arrays.toString(tmp));
+        sendMessage("END TWINS");
     }
 
     /**
      * Send a newline-terminated message on the output stream to the client.
+     *
      * @param msg the message to send, not including the newline
-     * @throws IOException 
+     * @throws IOException
      */
     private void sendMessage(String msg) throws IOException {
         writer.write(msg);
