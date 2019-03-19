@@ -12,7 +12,12 @@ import java.io.Writer;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Scanner;
+import java.util.stream.Collectors;
 
 public class Server {
 
@@ -45,7 +50,6 @@ public class Server {
             }
         }
     }
-
     /**
      * Run a Twins protocol session over an established network connection.
      *
@@ -55,97 +59,244 @@ public class Server {
     public void session(Socket connection) throws IOException {
         writer = new OutputStreamWriter(connection.getOutputStream());
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-
+        
         //  CW specifies a persistent database and that is platform indepedent and created during code
         File file = new File("TwinsDatabase.txt");
-        FileWriter fileWriter = new FileWriter(file);
-        BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-
         String initialMessage;
-        String date;
+
+        String name = null;
+        String date = null;
+        String day = null;
+        String month = null;
         TCPstate = "NEW";
+         
         while ((initialMessage = reader.readLine()) != null) {
-            if (initialMessage.equals("hello") && TCPstate.equals("NEW")) {
-                TCPstate = "RECEIVE_NAME";
-                sendMessage("What is your name?");
-                String name = reader.readLine();
+            if (initialMessage.toLowerCase().trim().equals("hello")) {
+                while(true){            
+                   System.out.println(TCPstate);
+                 while (true) {
+                    switch (TCPstate) {
+                        case "NEW":
+                            sendMessage("What is your name?");
+                            TCPstate = "RECEIVE_NAME";
+                            break;
+                        case "RECEIVE_NAME":
+                            name = reader.readLine().trim();
+                            sendMessage(name);
+                            // if <name> is already registered:
+                            try {  
+                               File checkEmpty = new File("TwinsDatabase.txt");
+                                BufferedReader br = new BufferedReader(new FileReader("TwinsDatabase.txt"));
+                                String line;
+                                if (checkEmpty.length() == 0)
+                                {
+                                sendMessage("EMPTY FILE");
+                                sendMessage("When were you born?");
+                                 TCPstate = "RECEIVE_DATE";
+                                }
+                                else {
+                                    String tmp[] = null;
+                                    Scanner filez = new Scanner(new File("TwinsDatabase.txt"));
+                                    while (filez.hasNextLine()) {
+                                        sendMessage(name);
+                                        final String lineFromFile = filez.nextLine();
+                                        sendMessage(name);
+                                        if (lineFromFile.contains(name)) {
+                                            tmp = lineFromFile.split("\t");
+                                            sendMessage(name);
+                                        }
+                                    }                                
+                                    
+                                if (Arrays.asList(tmp).contains(name))
+                                {
+                                    date = retrieveDate(name);
+                                    String[] dateChecker = date.split(":", 3);
+                                    day = dateChecker[0];
+                                    month = dateChecker[1];
+                                    displayTwins(name,day, month);
+                                    TCPstate = "RECEIVE_REQ";
+                                }              
+                                else{
+                                    sendMessage("DONT EXIT");
+                                    sendMessage("When were you born?");
+                                    TCPstate = "RECEIVE_DATE";
+                                 
+                                }
+                                }
+                            } catch(Exception e){
+                                System.out.println(e.toString());
+                            }
+                            break ;
+                        case "RECEIVE_DATE":
+                            // or, if <name> is not already registered:
+                            date = reader.readLine();
+                            boolean dateCheck = checkDateFormat(date);
+                            if (dateCheck == true){
+                            try (Writer writer = new BufferedWriter(new FileWriter(file, true))) {
+                                String contents = name;
+                                    writer.write(contents + "\t" + date + "\r\n");
+                            displayTwins(name, day, month);
+                                TCPstate = "RECEIVE_REQ";
+                            break;
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            } else {
+                                sendMessage("ERROR 2 - Invalid date.");
+                                sendMessage("Please write the date in the following format: dd:mm:yyyy");
+                            }
+                            break ;
+                        case "RECEIVE_REQ":
+                            // Alternatives chosen by client:
+                            options:
+                            while (true) {
+                                sendMessage("Here are your alternatives");
+                                sendMessage("[Quit] to close connection");
+                                sendMessage("[Refresh] to close connection");
+                                sendMessage("[Delete me] to close connection");
 
-                try {
-                    BufferedReader br = new BufferedReader(new FileReader("TwinsDatabase.txt"));
-                    String line = null;
-
-// if <name> is already registered, display <Twins list>
-                    while ((line = br.readLine()) != null) {
-                        String tmp[] = line.split("\t");
-                        
-                        if (Arrays.asList(tmp).contains(name)) {
-                            sendMessage("That name is already registered, Printing Twins now");
-                            sendMessage("BEGIN TWINS");
-                            sendMessage(tmp[0]);
-                            sendMessage("END TWINS");
-                        }
-                        
-                        
-
+                                String options = reader.readLine();
+                                switch (options) {
+                                    case "Quit":
+                                        connection.close();
+                                        break options;
+                                    case "Refresh":
+                                      displayTwins(name,day, month);
+                                        TCPstate = "RECEIVE_REQ";
+                                        break options;
+                                    case "Delete me":
+                                        removeLine(name);
+                                        break options;
+                                    default:
+                                        System.err.println("Error 0");
+                                }
+                                break;
+                            }
+                            break;
                     }
-
-                    sendMessage("When were you born?");
-                    date = reader.readLine();
-
-                    try (Writer writer = new BufferedWriter(new FileWriter(file, true))) {
-                        String contents = name;
-                        writer.write(contents + "\t" + date + "\r\n");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
-// <editor-fold>
-                //  if <name> is already registered:
-                /*
-        System.err.println("User's name is " + name);
-        
-        System.err.println("User's dob is " + dateOfBirth);
-        
-        
-                 */
-                // </editor-fold>
-            } else {
-                initialMessage = "";
-                TCPstate = "NEW";
-                sendMessage("The server is expecting a 'hello'");
+                } 
 
-            }
-// <editor-fold>
-            //  else if <name> is not already registered:
-            // Server: When were you born?
-            // TODO: replace this with the actual protocol logic
-            // we got a client message, but we didn't look at it,
-            // then we sent a completely invalid response!  
-            //System.out.println("Closing connection");
-            //connection.close();
-// </editor-fold>
+            }else {
+                sendMessage("Error 0");
         }
     }
+    }
+    
+    public boolean DateCheck(String name){
+    
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    return true;
+    
+    
+    }
+    
+    private String retrieveDate(String name) throws IOException {
+        String dateOfUser;
+        String tmp[] = null;
+        Scanner filez = new Scanner(new File("TwinsDatabase.txt"));
+                                    while (filez.hasNextLine()) {
+                                        final String lineFromFile = filez.nextLine();
+                                        if (lineFromFile.contains(name)) {
+                                            tmp = lineFromFile.split("\t");
+                                            dateOfUser = tmp[1];
+                                            return dateOfUser;
+                                        }
+                                    }
+                                    return null;
+    }
+    
+    private boolean checkDateFormat(String date)
+    {
+                                boolean dateCheck;
+                            if (date.matches("^[0-9:]+$"))
+                            {
+                                String[] dateChecker = date.split(":", 3);
+                                int day = Integer.parseInt(dateChecker[0]);
+                                int month = Integer.parseInt(dateChecker[1]);
+                                int year = Integer.parseInt(dateChecker[2]);
+                                if (year >= 1900 && year <= 2019) {
+                                    if (month >= 1 && month <= 12) {
+                                        if (month % 2 == 0 && month != 2 && month != 8) {
+                                            if (day >= 1 && day <= 30) {
+                                                return true;
+                                            } else {
+                                                System.out.println("Month that are multiple of 2 can't have more than 30 days"); // Testing purposes
+                                                return false;
+                                                
+                                            }
+                                        } else if (month == 2) {
+                                            if (day >= 1 && day <= 29) {
+                                                return true;
+                                            } else {
+                                                System.out.println("February cant have more than 29 days"); // Testing purposes
+                                                return false;
+                                                
+                                            }
+                                        } else if (month == 8) { // This is necessary as August have 31 days even though it's a multiple of 2
+                                            if (day >= 1 && day <= 31) {
+                                                return true;
+                                            } else {
+                                                System.out.println("August can't have more than 31 days");
 
-    private void displayTwins(String[] tmp, String name) throws IOException {
-        // <editor-fold>
-        /*
-        if (Arrays.asList(tmp).contains(name)) {
-                            date = tmp[1];
-                            sendMessage(name + " " + date);
-                        } else {
-                            sendMessage("Can't find user with that name!");
+                                                return false;
+                                            }
+                                        } else {
+                                            if (day >= 1 && day <= 31) {
+                                                return true;
+                                            } else {
+                                                System.out.println("A month cant have more than 31 days"); // Testing purposes
+                                                return false;    
+                                            }
+                                        }
+                                    } else {
+                                        System.out.println("Invalid month"); // Testing purposes
+                                        return false;
+                                        
+                                    }
+                                } else {
+                                    System.out.println("Invalid year"); // Testing purposes
+                                    return false;
+                                    
+                                }
+                            } else { // If the date written is not in the dd:mm:yyyy format
+                                return false;
+                            }
+    }
+    
 
-                        }
-         */
-        // </editor-fold>
-        sendMessage("BEGIN TWINS");
-        sendMessage(Arrays.toString(tmp));
-        sendMessage("END TWINS");
+    private void displayTwins(String name, String day, String month) throws IOException {
+        String tmp[] = null;
+        Scanner filez = new Scanner(new File("TwinsDatabase.txt"));
+                                            sendMessage("BEGIN TWINS");
+                                    while (filez.hasNextLine()) {
+                                        final String lineFromFile = filez.nextLine();
+                                        if (!lineFromFile.contains(name) && (lineFromFile.contains(day) && lineFromFile.contains(month))) {
+                                            tmp = lineFromFile.split("\t");
+                                            sendMessage(tmp[0]);  
+                                        }
+                                    }
+                                    sendMessage("END TWINS");
     }
 
+    public void removeLine(String lineContent) throws IOException
+{
+    File file = new File("TwinsDatabase.txt");
+    List<String> out = Files.lines(file.toPath())
+                        .filter(line -> !line.contains(lineContent))
+                        .collect(Collectors.toList());
+    Files.write(file.toPath(), out, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+}
+    
     /**
      * Send a newline-terminated message on the output stream to the client.
      *
@@ -153,7 +304,7 @@ public class Server {
      * @throws IOException
      */
     private void sendMessage(String msg) throws IOException {
-        writer.write(msg);
+        writer.write(msg.toString());
         writer.write("\r\n"); // Windows! Differ to Linux's \n
         // this flush() is necessary, otherwise ouput is buffered locally and
         // won't be sent to the client until it is too late 
